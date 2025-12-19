@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Stopwatch — Pinkesh Saini</title>
+  <style>
+    :root{
+      --bg:#071226;
+      --panel:#0b1422;
+      --accent1:#7b61ff;
+      --accent2:#3ec1ff;
+      --muted: #9fb3d4;
+      --glass: rgba(255,255,255,0.03);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      background: linear-gradient(180deg,#020612 0%, #071226 100%);
+      color:#e6eef8;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:24px;
+    }
+    .card{
+      width:100%;
+      max-width:920px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border-radius:12px;
+      padding:24px;
+      box-shadow: 0 12px 40px rgba(2,6,23,0.6);
+      border:1px solid rgba(255,255,255,0.04);
+      display:grid;
+      grid-template-columns: 1fr 320px;
+      gap:18px;
+    }
+    header{
+      grid-column:1/-1;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+    }
+    .brand{ display:flex; gap:12px; align-items:center }
+    .logo{ width:52px;height:52px;border-radius:12px; background:linear-gradient(90deg,var(--accent1),var(--accent2)); display:flex; align-items:center; justify-content:center; font-weight:800; color:#021027 }
+    h1{font-size:18px;margin:0}
+    .subtitle{font-size:13px;color:var(--muted); margin-top:2px}
+
+    /* left panel */
+    .panel{ padding:18px; border-radius:10px; background:var(--panel); display:flex; flex-direction:column; align-items:center; gap:12px; border:1px solid rgba(255,255,255,0.03) }
+    .display{ font-variant-numeric: tabular-nums; font-weight:800; font-size:56px; letter-spacing:1px }
+    .meta{ color:var(--muted); text-align:center; max-width:480px; font-size:14px }
+    .controls{ display:flex; gap:12px; flex-wrap:wrap; justify-content:center; margin-top:8px }
+    .btn{
+      padding:10px 16px; border-radius:10px; border:none; cursor:pointer; font-weight:700; font-size:14px;
+      box-shadow: 0 8px 20px rgba(2,6,23,0.5);
+    }
+    .btn.primary{ background:linear-gradient(90deg,var(--accent1),var(--accent2)); color:#021027 }
+    .btn.ghost{ background:transparent; color:var(--muted); border:1px solid rgba(255,255,255,0.04) }
+
+    /* right panel (laps) */
+    .right{ padding:18px; border-radius:10px; background:var(--panel); border:1px solid rgba(255,255,255,0.03); display:flex; flex-direction:column; gap:12px; min-height:260px }
+    .right h3{margin:0}
+    .laps{ overflow:auto; max-height:320px; padding-right:6px }
+    .lap{ display:flex; justify-content:space-between; align-items:center; gap:10px; padding:8px; border-radius:8px; background:rgba(255,255,255,0.01); border:1px solid rgba(255,255,255,0.02) }
+    .small{ font-size:13px; color:var(--muted) }
+
+    footer{ grid-column:1/-1; display:flex; justify-content:space-between; gap:12px; align-items:center; padding-top:6px }
+    .hint{ color:var(--muted); font-size:13px }
+
+    @media (max-width:980px){
+      .card{ grid-template-columns:1fr; padding:16px }
+      .right{ order:2 }
+      .panel{ order:1 }
+    }
+  </style>
+</head>
+<body>
+  <main class="card" role="main" aria-label="Stopwatch">
+    <header>
+      <div class="brand">
+        <div class="logo">PS</div>
+        <div>
+          <h1>Stopwatch — Pinkesh Saini</h1>
+          <div class="subtitle">Vivekananda Global University, Jaipur</div>
+        </div>
+      </div>
+      <div class="small">Keys: Space = Start/Stop • L = Lap • R = Reset</div>
+    </header>
+
+    <section class="panel" aria-labelledby="stopwatch-title">
+      <h2 id="stopwatch-title" style="position:absolute;left:-9999px;top:auto">Stopwatch</h2>
+      <div class="display" id="display">00:00:00.000</div>
+      <div class="meta">High-precision stopwatch built with <code>performance.now()</code> and <code>requestAnimationFrame</code>. Laps persist in localStorage.</div>
+
+      <div class="controls" role="group" aria-label="Stopwatch controls">
+        <button class="btn primary" id="startStop">Start</button>
+        <button class="btn ghost" id="lap" disabled>Lap</button>
+        <button class="btn ghost" id="reset" disabled>Reset</button>
+        <button class="btn ghost" id="clearLaps">Clear Laps</button>
+      </div>
+    </section>
+
+    <aside class="right" aria-labelledby="laps-heading">
+      <h3 id="laps-heading">Laps</h3>
+      <div class="small">Saved laps appear below. You can export or copy them.</div>
+      <div class="laps" id="lapsList" aria-live="polite"></div>
+
+      <div style="display:flex;gap:8px;align-items:center;margin-top:auto">
+        <button class="btn ghost" id="exportBtn">Export Laps</button>
+        <button class="btn ghost" id="copyBtn">Copy Laps</button>
+        <div style="flex:1"></div>
+        <div class="small" id="lapsCount">0 laps</div>
+      </div>
+    </aside>
+
+    <footer>
+      <div class="hint">Tip: use Lap to capture intermediate times. Reset will stop the timer.</div>
+      <div class="small">Built with ❤ — Responsive & Accessible</div>
+    </footer>
+  </main>
+
+  <script>
+    // Elements
+    const display = document.getElementById('display');
+    const startStopBtn = document.getElementById('startStop');
+    const lapBtn = document.getElementById('lap');
+    const resetBtn = document.getElementById('reset');
+    const clearLapsBtn = document.getElementById('clearLaps');
+    const lapsList = document.getElementById('lapsList');
+    const exportBtn = document.getElementById('exportBtn');
+    const copyBtn = document.getElementById('copyBtn');
+    const lapsCount = document.getElementById('lapsCount');
+
+    // State
+    let running = false;
+    let startTime = 0;
+    let elapsedBefore = 0;
+    let rafId = null;
+    let laps = [];
+
+    // Load laps from localStorage
+    try {
+      const saved = JSON.parse(localStorage.getItem('stopwatch-laps') || '[]');
+      if (Array.isArray(saved)) laps = saved;
+    } catch(e){ laps = []; }
+
+    function formatTime(ms){
+      const total = Math.max(0, Math.floor(ms));
+      const hours = Math.floor(total / 3600000);
+      const minutes = Math.floor((total % 3600000) / 60000);
+      const seconds = Math.floor((total % 60000) / 1000);
+      const millis = total % 1000;
+      const hh = String(hours).padStart(2,'0');
+      const mm = String(minutes).padStart(2,'0');
+      const ss = String(seconds).padStart(2,'0');
+      const mmm = String(millis).padStart(3,'0');
+      return ${hh}:${mm}:${ss}.${mmm};
+    }
+
+    function update(){
+      const now = performance.now();
+      const elapsed = (now - startTime) + elapsedBefore;
+      display.textContent = formatTime(elapsed);
+      rafId = requestAnimationFrame(update);
+    }
+
+    function start(){
+      if(running) return;
+      running = true;
+      startTime = performance.now();
+      rafId = requestAnimationFrame(update);
+      startStopBtn.textContent = 'Stop';
+      startStopBtn.classList.remove('primary'); startStopBtn.classList.add('ghost');
+      lapBtn.disabled = false;
+      resetBtn.disabled = false;
+      saveStateToStorage();
+    }
+
+    function stop(){
+      if(!running) return;
+      running = false;
+      cancelAnimationFrame(rafId);
+      const now = performance.now();
+      elapsedBefore = (now - startTime) + elapsedBefore;
+      startStopBtn.textContent = 'Start';
+      startStopBtn.classList.remove('ghost'); startStopBtn.classList.add('primary');
+      saveStateToStorage();
+    }
+
+    function reset(){
+      if(!confirm('Reset timer? Laps will remain unless you clear them.')) return;
+      stop();
+      elapsedBefore = 0;
+      display.textContent = '00:00:00.000';
+      resetBtn.disabled = true;
+      saveStateToStorage();
+    }
+
+    function addLap(){
+      const nowMs = running ? ((performance.now() - startTime) + elapsedBefore) : elapsedBefore;
+      const lapLabel = formatTime(nowMs);
+      const lap = { id: laps.length + 1, timeMs: Math.floor(nowMs), label: lapLabel };
+      laps.unshift(lap); // newest first
+      renderLaps();
+      saveLapsToStorage();
+    }
+
+    function renderLaps(){
+      lapsList.innerHTML = '';
+      if(laps.length === 0){
+        lapsList.innerHTML = '<div class="small" style="padding:8px;color:var(--muted)">No laps yet</div>';
+      } else {
+        laps.forEach(l => {
+          const item = document.createElement('div');
+          item.className = 'lap';
+          item.innerHTML = `<div>
+              <div style="font-weight:700">${l.label}</div>
+              <div class="small">Lap ${l.id} • ${Math.floor(l.timeMs/1000)}s</div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <button class="btn ghost" data-id="${l.id}">Delete</button>
+            </div>`;
+          const del = item.querySelector('button[data-id]');
+          del.addEventListener('click', ()=> {
+            laps = laps.filter(x => x.id !== l.id);
+            // reindex
+            laps = laps.map((x,i) => ({ ...x, id: laps.length - i }));
+            renderLaps();
+            saveLapsToStorage();
+          });
+          lapsList.appendChild(item);
+        });
+      }
+      lapsCount.textContent = ${laps.length} laps;
+    }
+
+    function clearLaps(){
+      if(!confirm('Clear all laps?')) return;
+      laps = [];
+      renderLaps();
+      saveLapsToStorage();
+    }
+
+    function exportLaps(){
+      if(laps.length === 0){ alert('No laps to export'); return; }
+      const text = laps.map(l => Lap ${l.id}: ${l.label}).reverse().join('\\n');
+      const blob = new Blob([text], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'laps.txt';
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function copyLaps(){
+      if(laps.length === 0){ alert('No laps to copy'); return; }
+      const text = laps.map(l => Lap ${l.id}: ${l.label}).reverse().join('\\n');
+      navigator.clipboard.writeText(text).then(()=> alert('Laps copied to clipboard'), ()=> alert('Unable to copy'));
+    }
+
+    // storage helpers
+    function saveLapsToStorage(){
+      try{ localStorage.setItem('stopwatch-laps', JSON.stringify(laps)); }catch(e){}
+    }
+    function saveStateToStorage(){
+      try{
+        const state = { running, elapsedBefore, // don't store startTime (session-specific)
+          // store display for convenience
+          display: display.textContent
+        };
+        localStorage.setItem('stopwatch-state', JSON.stringify(state));
+      }catch(e){}
+    }
+    function loadStateFromStorage(){
+      try{
+        const st = JSON.parse(localStorage.getItem('stopwatch-state') || 'null');
+        if(st){
+          elapsedBefore = st.elapsedBefore || 0;
+          display.textContent = st.display || formatTime(elapsedBefore);
+          // we do NOT automatically start the timer from a previous running true (avoid unexpected behavior)
+        }
+      }catch(e){}
+    }
+
+    // wire up buttons & keys
+    startStopBtn.addEventListener('click', ()=> running ? stop() : start());
+    lapBtn.addEventListener('click', addLap);
+    resetBtn.addEventListener('click', reset);
+    clearLapsBtn.addEventListener('click', clearLaps);
+    exportBtn.addEventListener('click', exportLaps);
+    copyBtn.addEventListener('click', copyLaps);
+
+    window.addEventListener('keydown', (e)=>{
+      if(e.code === 'Space'){ e.preventDefault(); running ? stop() : start(); }
+      if(e.key.toLowerCase() === 'l'){ if(!lapBtn.disabled) addLap(); }
+      if(e.key.toLowerCase() === 'r'){ reset(); }
+    });
+
+    // initialize
+    loadStateFromStorage();
+    renderLaps();
+    // make sure UI buttons reflect state
+    if(elapsedBefore > 0){ resetBtn.disabled = false; lapBtn.disabled = true; startStopBtn.classList.add('primary'); }
+  </script>
+</body>
+</html>
